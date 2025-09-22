@@ -1,0 +1,40 @@
+---
+name: Fixed Output Capture Test
+on:
+  workflow_dispatch:
+
+env:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+jobs:
+  capture-research:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - name: Execute Research with Full Capture
+        run: |
+          cd ~ && nix-shell -p nodejs expect --run 'expect -c "
+            set timeout 300
+            log_file claude-output.log
+            spawn npx @anthropic-ai/claude-code --dangerously-skip-permissions \"Research online: find the 3 fastest network discovery tools in 2025. List their nix package names and usage examples.\"
+            expect { -re {.*bypass permissions.*} { send \"2\r\" } }
+            expect { -re {.*tools.*|.*nix.*|.*discovery.*} {
+              sleep 5
+              send \"\\n\"
+            } }
+            expect eof
+          "' && echo "Expect script completed" > capture-status.txt
+      - name: Copy Output Files
+        run: |
+          nix-shell -p coreutils --run 'cp ~/claude-output.log . 2>/dev/null || echo "No log file found" > error.txt'
+          nix-shell -p coreutils --run 'ls -la > file-listing.txt'
+      - name: Upload All Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-capture-results
+          path: |
+            claude-output.log
+            capture-status.txt
+            error.txt
+            file-listing.txt
