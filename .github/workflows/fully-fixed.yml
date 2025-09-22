@@ -1,0 +1,37 @@
+---
+name: Fully Fixed Research Pattern
+on:
+  workflow_dispatch:
+
+env:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+jobs:
+  research-with-output-capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - name: Research with Full Output Capture
+        run: |
+          cd ~ && nix-shell -p nodejs expect --run 'expect -c "
+            set timeout 600
+            spawn npx @anthropic-ai/claude-code --dangerously-skip-permissions \"Research online: find 3 fastest network scanners for 2025. Output tool names and nix packages.\"
+            expect { -re {.*bypass permissions.*} { send \"2\r\" } }
+            expect { -re {.*tools.*|.*scanners.*|.*nix.*} {
+              sleep 10
+              exit 0
+            } timeout { exit 1 } }
+          "' > research-output.txt 2>&1
+      - name: Create Status File
+        run: nix-shell -p coreutils --run 'echo "Research execution completed" > status.txt'
+      - name: List All Files
+        run: nix-shell -p coreutils --run 'ls -la > file-list.txt'
+      - name: Upload Complete Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: complete-research-results
+          path: |
+            research-output.txt
+            status.txt
+            file-list.txt
