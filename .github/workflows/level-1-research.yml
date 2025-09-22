@@ -1,37 +1,33 @@
-name: Level 1 - Research Branch (46s each)
+---
+name: Level 1 Research Branch
 on:
   workflow_dispatch:
-    inputs:
-      task:
-        description: 'Branch research task'
-        required: true
-        default: 'specialized research analysis'
 
 env:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
 jobs:
-  branch-research:
+  research:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@main
-      - name: Step 1 - Branch Initialization
-        run: nix-shell -p coreutils --run 'echo "Level 1 branch research: ${{ github.event.inputs.task }}" > branch-init.txt'
-      - name: Step 2 - Execute Research
+      - name: Initialize
+        run: nix-shell -p coreutils --run 'echo "Starting" > init.txt'
+      - name: Research
         run: |
           nix-shell -p nodejs expect --run 'expect -c "
             set timeout 120
-            spawn npx @anthropic-ai/claude-code --dangerously-skip-permissions \"Research online: ${{ github.event.inputs.task }}. Find latest tools, techniques, and methodologies. Output brief summary.\"
+            spawn npx @anthropic-ai/claude-code --dangerously-skip-permissions \"Research: tools\"
             expect { -re {.*bypass permissions.*} { send \"2\r\" } }
-            expect { -re {.*research.*|.*tools.*|.*Write.*} { exit 0 } timeout { exit 1 } }
+            expect { -re {.*research.*|.*Write.*} { exit 0 } timeout { exit 1 } }
           "'
-      - name: Step 3 - Document Results
-        run: nix-shell -p coreutils --run 'echo "Branch research completed for: ${{ github.event.inputs.task }}" > branch-results.txt'
-      - name: Upload Branch Results
+      - name: Results
+        run: nix-shell -p coreutils --run 'echo "Complete" > results.txt'
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: level-1-branch-results
+          name: results
           path: |
-            branch-init.txt
-            branch-results.txt
+            init.txt
+            results.txt
